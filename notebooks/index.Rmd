@@ -1,0 +1,59 @@
+---
+title: "Analysis of PacMAN metabarcoding data"
+author: "Saara Suominen, Pieter Provoost"
+output: 
+  html_document:
+    theme: flatly
+    toc: yes
+    toc_float:
+      collapsed: false
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })  
+---
+
+This is a first analysis of the COI metabarcording data from PacMAN available as of July 2023. Raw sequence data have been analyzed with the [PacMAN bioinformatics pipeline](https://github.com/iobis/PacMAN-pipeline) and the resulting Darwin Core tables are included in this repository.
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_knit$set(
+  root.dir = rprojroot::find_rstudio_root_file()
+)
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+library(dplyr)
+library(ggplot2)
+library(leaflet)
+library(sf)
+library(rmarkdown)
+```
+
+```{r echo=FALSE}
+occurrence <- read.table("data/COI/Occurence_table.tsv", sep = "\t", header = TRUE, na.strings = "") %>%
+  mutate(species = ifelse(taxonRank == "species", scientificName, NA))
+dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE, na.strings = "")
+```
+
+## Sample overview
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+samples <- occurrence %>%
+  filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
+  group_by(locationID, eventID, materialSampleID, decimalLongitude, decimalLatitude) %>%
+  summarize(asvs = n(), reads = sum(organismQuantity)) %>%
+  arrange(locationID, eventID, materialSampleID) %>%
+  st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
+
+leaflet(samples, width = "100%") %>% addTiles() %>% addMarkers(
+  clusterOptions = markerClusterOptions(maxClusterRadius = 10),
+  popup = ~eventID
+)
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+samples %>%
+  st_drop_geometry() %>%
+  paged_table(options = list(rows.print = 20))
+```
+

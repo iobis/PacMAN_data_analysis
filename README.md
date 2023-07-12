@@ -1,1 +1,1 @@
-# PacMAN_data_analysis
+# pacman-data-analysis
