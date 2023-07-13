@@ -17,7 +17,7 @@ jobs:
           r-version: 4
       - uses: r-lib/actions/setup-pandoc@v2
       - name: Install dependencies
-        run: Rscript -e 'install.packages(c("rmarkdown", "dplyr", "ggplot2", "rprojroot", "sf", "leaflet", "stringr", "readr", "viridis"))'
+        run: Rscript -e 'install.packages(c("rmarkdown", "dplyr", "ggplot2", "rprojroot", "sf", "leaflet", "stringr", "readr", "viridis", "tidyr", "vegan"))'
       - name: Render notebook
         run: Rscript -e 'rmarkdown::render("notebooks/index.Rmd", output_dir = "../docs")'
       - name: Deploy to GitHub Pages
