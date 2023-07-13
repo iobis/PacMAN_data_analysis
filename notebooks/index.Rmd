@@ -34,6 +34,8 @@ library(rmarkdown)
 library(stringr)
 library(readr)
 library(viridis)
+library(tidyr)
+library(vegan)
 ```
 
 ```{r echo=FALSE}
@@ -97,6 +99,41 @@ ggplot(data = stats_phylum) +
   facet_grid(eventType~locationID) +
   theme(legend.position = "none") +
   ggtitle("Number of reads by location, sample type, and phylum")
+```
+
+### Multidimensional scaling
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
+stats_mds <- occurrence %>%
+  filter(!is.na(phylum) & !is.na(eventType)) %>%
+  group_by(materialSampleID, phylum) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = phylum, values_from = reads, values_fill = 0)
+
+materialSampleIDs <- stats_mds$materialSampleID
+stats_mds <- stats_mds %>%
+  select(-materialSampleID)
+rs <- rowSums(stats_mds)
+stats_mds <- stats_mds %>%
+  mutate_if(is.numeric, funs(. / rs))
+
+mds <- metaMDS(stats_mds)
+
+mds_sites <- as.data.frame(scores(mds)$sites) %>%
+  mutate(materialSampleID = materialSampleIDs) %>%
+  left_join(samples, by = "materialSampleID")
+
+mds_species <- as.data.frame(scores(mds)$species) %>%
+  mutate(phylum = row.names(.))
+
+ggplot() +
+  geom_point(data = mds_sites, aes(NMDS1, NMDS2, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = mds_species, aes(NMDS1, NMDS2, label = phylum), color = "#a83257", size = 3) +
+  geom_text(data = mds_sites, aes(NMDS1, NMDS2, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 0.3)) +
+  ggtitle("Nonmetric multidimensional scaling")
 ```
 
 ## Introduced species
