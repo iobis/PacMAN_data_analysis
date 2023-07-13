@@ -29,6 +29,7 @@ library(sf)
 library(rmarkdown)
 library(stringr)
 library(readr)
+library(viridis)
 ```
 
 ```{r echo=FALSE}
@@ -65,7 +66,8 @@ leaflet(samples, width = "100%") %>% addTiles() %>% addMarkers(
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12}
 ggplot(samples) +
   geom_bar(aes(x = locationID, fill = eventType), width = 0.3) +
-  scale_fill_manual(values = c(plankton = "#8BBEB2", water = "#456092", plate = "#18314F"))
+  scale_fill_manual(values = c(plankton = "#8BBEB2", water = "#456092", plate = "#18314F")) +
+  ggtitle("Number of samples by location and sample type")
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
@@ -76,7 +78,26 @@ samples %>%
 
 ## Taxonomic composition
 
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=14, fig.width=12}
+stats_phylum <- occurrence %>%
+  filter(locationID != "Control" & !is.na(phylum)) %>%
+  group_by(phylum, locationID, eventType) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  ungroup()
+
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = reads, fill = phylum), stat = "identity") +
+  scale_x_continuous(trans = "log10") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of reads by location, sample type, and phylum")
+```
+
 ## Introduced species
+
+To do.
 
 ## Full species list
 
