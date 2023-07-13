@@ -103,6 +103,8 @@ ggplot(data = stats_phylum) +
 
 ### Multidimensional scaling
 
+Multidimensional scaling using reads per phylum.
+
 ```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
 stats_mds <- occurrence %>%
   filter(!is.na(phylum) & !is.na(eventType)) %>%
