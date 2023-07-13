@@ -27,11 +27,22 @@ library(ggplot2)
 library(leaflet)
 library(sf)
 library(rmarkdown)
+library(stringr)
+library(readr)
 ```
 
 ```{r echo=FALSE}
 occurrence <- read.table("data/COI/Occurence_table.tsv", sep = "\t", header = TRUE, na.strings = "") %>%
-  mutate(species = ifelse(taxonRank == "species", scientificName, NA))
+  mutate(
+    species = ifelse(taxonRank == "species", scientificName, NA),
+    eventDate = parse_date(str_match(eventID, "_([0-9]+)_")[,2], format = "%Y%m%d"),
+    eventType = case_when(
+      str_detect(eventID, "_P") ~ "plankton",
+      str_detect(eventID, "_S") ~ "plate",
+      str_detect(eventID, "_W") ~ "water"
+    )
+  )
+
 dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE, na.strings = "")
 ```
 
@@ -40,9 +51,9 @@ dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE,
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 samples <- occurrence %>%
   filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
-  group_by(locationID, eventID, materialSampleID, decimalLongitude, decimalLatitude) %>%
+  group_by(locationID, eventID, materialSampleID, eventType, decimalLongitude, decimalLatitude, eventDate) %>%
   summarize(asvs = n(), reads = sum(organismQuantity)) %>%
-  arrange(locationID, eventID, materialSampleID) %>%
+  arrange(locationID, eventDate, eventType, materialSampleID) %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
 
 leaflet(samples, width = "100%") %>% addTiles() %>% addMarkers(
@@ -51,9 +62,36 @@ leaflet(samples, width = "100%") %>% addTiles() %>% addMarkers(
 )
 ```
 
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12}
+ggplot(samples) +
+  geom_bar(aes(x = locationID, fill = eventType), width = 0.3) +
+  scale_fill_manual(values = c(plankton = "#8BBEB2", water = "#456092", plate = "#18314F"))
+```
+
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 samples %>%
   st_drop_geometry() %>%
   paged_table(options = list(rows.print = 20))
 ```
 
+## Taxonomic composition
+
+## Introduced species
+
+## Full species list
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+species <- occurrence %>%
+  filter(!is.na(species)) %>%
+  group_by(phylum, class, species) %>%
+  summarize(
+    reads = sum(organismQuantity),
+    water = "water" %in% eventType,
+    plate = "plate" %in% eventType,
+    plankton = "plankton" %in% eventType
+  ) %>%
+  arrange(desc(reads))
+
+species %>%
+  paged_table(options = list(rows.print = 20))
+```
