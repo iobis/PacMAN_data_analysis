@@ -1,0 +1,14 @@
+Package: pacman-data-analysis
+Version: 0.0.1
+Imports:
+  rmarkdown,
+  dplyr,
+  ggplot2,
+  rprojroot,
+  sf,
+  leaflet,
+  stringr,
+  readr,
+  viridis,
+  tidyr,
+  vegan

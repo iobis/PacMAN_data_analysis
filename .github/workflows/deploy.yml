@@ -16,8 +16,6 @@ jobs:
         with:
           r-version: 4
       - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rmarkdown, any::dplyr, any::ggplot2, any::rprojroot, any::sf, any::leaflet, any::stringr, any::readr, any::viridis, any::tidyr, any::vegan
       - uses: r-lib/actions/setup-pandoc@v2
       - name: Render notebook
         run: Rscript -e 'rmarkdown::render("notebooks/index.Rmd", output_dir = "../docs")'
