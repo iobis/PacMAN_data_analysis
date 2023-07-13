@@ -15,6 +15,10 @@ knit: (function(inputFile, encoding) {
 
 This is a first analysis of the COI metabarcording data from PacMAN available as of July 2023. Raw sequence data have been analyzed with the [PacMAN bioinformatics pipeline](https://github.com/iobis/PacMAN-pipeline) and the resulting Darwin Core tables are included in this repository.
 
+The source for this notebook is hosted at <https://github.com/iobis/pacman-data-analysis>.
+
+![](https://github.com/iobis/pacman-data-analysis/actions/workflows/deploy.yml/badge.svg)
+
 ```{r setup, include=FALSE, cache=FALSE}
 knitr::opts_knit$set(
   root.dir = rprojroot::find_rstudio_root_file()
@@ -78,7 +82,7 @@ samples %>%
 
 ## Taxonomic composition
 
-```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=14, fig.width=12}
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
 stats_phylum <- occurrence %>%
   filter(locationID != "Control" & !is.na(phylum)) %>%
   group_by(phylum, locationID, eventType) %>%
