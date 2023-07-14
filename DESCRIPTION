@@ -12,3 +12,5 @@ Imports:
   viridis,
   tidyr,
   vegan
+Remotes:
+    iobis/caspr

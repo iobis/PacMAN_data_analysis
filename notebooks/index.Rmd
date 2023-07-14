@@ -36,6 +36,7 @@ library(readr)
 library(viridis)
 library(tidyr)
 library(vegan)
+library(caspr)
 ```
 
 ```{r echo=FALSE}
@@ -43,6 +44,7 @@ occurrence <- read.table("data/COI/Occurence_table.tsv", sep = "\t", header = TR
   mutate(
     species = ifelse(taxonRank == "species", scientificName, NA),
     eventDate = parse_date(str_match(eventID, "_([0-9]+)_")[,2], format = "%Y%m%d"),
+    aphiaID = str_extract(scientificNameID, "[0-9]+"),
     eventType = case_when(
       str_detect(eventID, "_P") ~ "plankton",
       str_detect(eventID, "_S") ~ "plate",
@@ -172,16 +174,12 @@ ggplot() +
   ggtitle("Nonmetric multidimensional scaling")
 ```
 
-## Introduced species
-
-To do.
-
 ## Full species list
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 species <- occurrence %>%
   filter(!is.na(species)) %>%
-  group_by(phylum, class, species) %>%
+  group_by(phylum, class, species, aphiaID) %>%
   summarize(
     reads = sum(organismQuantity),
     water = "water" %in% eventType,
@@ -191,5 +189,21 @@ species <- occurrence %>%
   arrange(desc(reads))
 
 species %>%
+  select(-aphiaID) %>%
+  paged_table(options = list(rows.print = 20))
+```
+
+## Introduced species
+
+This is the subset of species which are listed in the World Register of Introduced Marine Species (WRiMS). These are not necessarily introduced in Fiji.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+wrims <- caspr::wrims_checklist()
+
+introduced <- species %>%
+  filter(aphiaID %in% wrims$taxonID)
+
+introduced %>%
+  select(-aphiaID) %>%
   paged_table(options = list(rows.print = 20))
 ```
