@@ -11,6 +11,7 @@ Imports:
   readr,
   viridis,
   tidyr,
-  vegan
+  vegan,
+  caspr
 Remotes:
     iobis/caspr
