@@ -37,6 +37,7 @@ library(viridis)
 library(tidyr)
 library(vegan)
 library(caspr)
+library(reactable)
 ```
 
 ```{r echo=FALSE}
@@ -61,7 +62,8 @@ dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE,
 samples <- occurrence %>%
   filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
   group_by(locationID, eventID, materialSampleID, eventType, decimalLongitude, decimalLatitude, eventDate) %>%
-  summarize(asvs = n(), reads = sum(organismQuantity)) %>%
+  summarize(asvs = n(), reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
+  ungroup() %>%
   arrange(locationID, eventDate, eventType, materialSampleID) %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
 
@@ -78,10 +80,65 @@ ggplot(samples) +
   ggtitle("Number of samples by location and sample type")
 ```
 
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=11, fig.height=9}
+ggplot() +
+  geom_point(data = samples, aes(reads, species, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = samples, aes(reads, species, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 20000)) +
+  ggtitle("Reads and species by sample")
+```
+
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
+species_def <- colDef(
+  minWidth = 250,
+  style = list("font-size" = "0.9em")
+)
+
+reads_def <- colDef(
+  style = list("font-size" = "0.9em")
+)
+
+text_def_narrow <- colDef(
+  maxWidth = 130,
+  style = list("font-size" = "0.9em")
+)
+
+text_def_verynarrow <- colDef(
+  maxWidth = 80,
+  style = list("font-size" = "0.9em")
+)
+
+text_def <- colDef(
+  style = list("font-size" = "0.9em")
+)
+
+bool_def <- colDef(
+  maxWidth = 60,
+  style = function(value) {
+    if (value) {
+      list(
+        color = "#18bc9c",
+        "font-size" = "0.9em"
+      )
+    } else {
+      list("font-size" = "0.9em")
+    }
+  }
+)
+
 samples %>%
   st_drop_geometry() %>%
-  paged_table(options = list(rows.print = 20))
+  select(-locationID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "eventID" = text_def,
+    "materialSampleID" = text_def_narrow,
+    "eventType" = text_def_verynarrow,
+    "eventDate" = text_def_narrow,
+    "asvs" = text_def_verynarrow,
+    "reads" = text_def_verynarrow,
+    "species" = text_def_verynarrow
+  ))
 ```
 
 ## Taxonomic composition
@@ -190,7 +247,15 @@ species <- occurrence %>%
 
 species %>%
   select(-aphiaID) %>%
-  paged_table(options = list(rows.print = 20))
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = bool_def,
+    "water" = bool_def,
+    "plankton" = bool_def
+  ))
 ```
 
 ## Introduced species
@@ -205,10 +270,13 @@ introduced <- species %>%
 
 introduced %>%
   select(-aphiaID) %>%
-  paged_table(options = list(rows.print = 20))
-```
-
-```{r warning=FALSE, message=FALSE, echo=FALSE}
-introduced %>%
-  reactable(pagination = TRUE)
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = bool_def,
+    "water" = bool_def,
+    "plankton" = bool_def
+  ))
 ```

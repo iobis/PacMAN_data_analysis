@@ -13,7 +13,8 @@ Imports:
   tidyr,
   vegan,
   landr,
-  caspr
+  caspr,
+  reactable
 Remotes:
-  pieterprovoost/landr
+  pieterprovoost/landr,
   iobis/caspr
