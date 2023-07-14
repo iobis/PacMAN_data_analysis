@@ -12,6 +12,8 @@ Imports:
   viridis,
   tidyr,
   vegan,
+  landr,
   caspr
 Remotes:
-    iobis/caspr
+  pieterprovoost/landr
+  iobis/caspr

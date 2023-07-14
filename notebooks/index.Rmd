@@ -207,3 +207,8 @@ introduced %>%
   select(-aphiaID) %>%
   paged_table(options = list(rows.print = 20))
 ```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+introduced %>%
+  reactable(pagination = TRUE)
+```
