@@ -161,15 +161,8 @@ ggplot(data = stats_phylum) +
 ```
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
-stats_phylum <- occurrence %>%
-  filter(locationID != "Control" & !is.na(phylum)) %>%
-  group_by(phylum, locationID, eventType) %>%
-  summarize(reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
-  ungroup()
-
 ggplot(data = stats_phylum) +
-  geom_bar(aes(y = phylum, x = reads, fill = phylum), stat = "identity") +
-  scale_x_continuous(trans = "log10") +
+  geom_bar(aes(y = phylum, x = species, fill = phylum), stat = "identity") +
   scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
   scale_y_discrete(limits = rev) +
   facet_grid(eventType~locationID) +
