@@ -147,7 +147,7 @@ samples %>%
 stats_phylum <- occurrence %>%
   filter(locationID != "Control" & !is.na(phylum)) %>%
   group_by(phylum, locationID, eventType) %>%
-  summarize(reads = sum(organismQuantity)) %>%
+  summarize(reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
   ungroup()
 
 ggplot(data = stats_phylum) +
@@ -158,6 +158,23 @@ ggplot(data = stats_phylum) +
   facet_grid(eventType~locationID) +
   theme(legend.position = "none") +
   ggtitle("Number of reads by location, sample type, and phylum")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
+stats_phylum <- occurrence %>%
+  filter(locationID != "Control" & !is.na(phylum)) %>%
+  group_by(phylum, locationID, eventType) %>%
+  summarize(reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
+  ungroup()
+
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = reads, fill = phylum), stat = "identity") +
+  scale_x_continuous(trans = "log10") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of species by location, sample type, and phylum")
 ```
 
 ## Beta diversity
