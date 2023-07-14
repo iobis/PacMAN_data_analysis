@@ -9,8 +9,11 @@ jobs:
     name: render-notebook
     runs-on: ubuntu-latest
     steps:
-      - name: Install gdal
-        run: sudo apt-get install -y libgdal-dev libudunits2-dev
+      # - name: Install gdal
+      #   run: sudo apt-get install -y libgdal-dev libudunits2-dev
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libgdal-dev libudunits2-dev
       - uses: actions/checkout@v3
       - uses: r-lib/actions/setup-r@v2
         with:
