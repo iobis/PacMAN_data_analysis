@@ -38,6 +38,7 @@ library(tidyr)
 library(vegan)
 library(caspr)
 library(reactable)
+library(htmltools)
 ```
 
 ```{r echo=FALSE}
@@ -62,7 +63,9 @@ dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE,
 samples <- occurrence %>%
   filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
   group_by(locationID, eventID, materialSampleID, eventType, decimalLongitude, decimalLatitude, eventDate) %>%
-  summarize(asvs = n(), reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
+  summarize(
+    asvs = n(), reads = sum(organismQuantity), species = length(unique(na.omit(species)))
+  ) %>%
   ungroup() %>%
   arrange(locationID, eventDate, eventType, materialSampleID) %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
@@ -91,7 +94,7 @@ ggplot() +
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 species_def <- colDef(
-  minWidth = 250,
+  minWidth = 200,
   style = list("font-size" = "0.9em")
 )
 
@@ -123,6 +126,24 @@ bool_def <- colDef(
       )
     } else {
       list("font-size" = "0.9em")
+    }
+  }
+)
+
+abundance_def <- colDef(
+  maxWidth = 80,
+  header = function(value) {
+    units <- div("%")
+    div(title = value, value, units)
+  },
+  style = function(value) {
+    if (value > 0) {
+      list(
+        color = "#18bc9c",
+        "font-size" = "0.8em"
+      )
+    } else {
+      list("font-size" = "0.8em", "visibility" = "hidden")
     }
   }
 )
@@ -244,16 +265,29 @@ ggplot() +
 ## Full species list
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
+abundances <- occurrence %>%
+  filter(!is.na(eventType)) %>%
+  group_by(aphiaID, species, eventType) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  group_by(eventType) %>%
+  mutate(total_reads = sum(reads)) %>%
+  ungroup() %>%
+  mutate(abundance = reads / total_reads * 100) %>%
+  spread(eventType, abundance) %>%
+  group_by(aphiaID) %>%
+  summarize(water = round(sum(na.omit(water)), 3), plankton = round(sum(na.omit(plankton)), 3), plate = round(sum(na.omit(plate)), 3))
+
 species <- occurrence %>%
-  filter(!is.na(species)) %>%
+  filter(!is.na(species) & !is.na(eventType)) %>%
   group_by(phylum, class, species, aphiaID) %>%
   summarize(
-    reads = sum(organismQuantity),
-    water = "water" %in% eventType,
-    plate = "plate" %in% eventType,
-    plankton = "plankton" %in% eventType
+    reads = sum(organismQuantity)
+    # water = "water" %in% eventType,
+    # plate = "plate" %in% eventType,
+    # plankton = "plankton" %in% eventType
   ) %>%
-  arrange(desc(reads))
+  arrange(desc(reads)) %>%
+  left_join(abundances, by = "aphiaID")
 
 species %>%
   select(-aphiaID) %>%
@@ -262,9 +296,9 @@ species %>%
     "class" = text_def_narrow,
     "species" = species_def,
     "reads" = reads_def,
-    "plate" = bool_def,
-    "water" = bool_def,
-    "plankton" = bool_def
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
   ))
 ```
 
@@ -285,8 +319,8 @@ introduced %>%
     "class" = text_def_narrow,
     "species" = species_def,
     "reads" = reads_def,
-    "plate" = bool_def,
-    "water" = bool_def,
-    "plankton" = bool_def
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
   ))
 ```
