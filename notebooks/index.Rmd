@@ -13,7 +13,7 @@ knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_dir = "../docs") })  
 ---
 
-This is a first analysis of the COI metabarcording data from PacMAN available as of July 2023. Raw sequence data have been analyzed with the [PacMAN bioinformatics pipeline](https://github.com/iobis/PacMAN-pipeline) and the resulting Darwin Core tables are included in this repository.
+This is a first analysis of the COI metabarcording data from PacMAN available as of July 2024. Raw sequence data have been analyzed with the [PacMAN bioinformatics pipeline](https://github.com/iobis/PacMAN-pipeline) and the resulting Darwin Core tables are included in this repository.
 
 The source for this notebook is hosted at <https://github.com/iobis/pacman-data-analysis>.
 
@@ -42,6 +42,7 @@ library(htmltools)
 ```
 
 ```{r echo=FALSE}
+#getwd()
 occurrence <- read.table("data/COI/Occurence_table.tsv", sep = "\t", header = TRUE, na.strings = "") %>%
   mutate(
     species = ifelse(taxonRank == "species", scientificName, NA),
@@ -57,7 +58,50 @@ occurrence <- read.table("data/COI/Occurence_table.tsv", sep = "\t", header = TR
 dna <- read.table("data/COI/DNA_extension_table.tsv", sep = "\t", header = TRUE, na.strings = "")
 ```
 
-## Sample overview
+```{r echo=FALSE}
+#getwd()
+occurrence24 <- read.table("data/COI_2024/Occurrence_table.tsv", sep = "\t", header = TRUE, na.strings = "") %>%
+  mutate(
+    species = ifelse(taxonRank == "species", scientificName, NA),
+    eventDate = parse_date(str_match(eventID, "_([0-9]+)_")[,2], format = "%Y%m%d"),
+    aphiaID = str_extract(scientificNameID, "[0-9]+"),
+    eventType = case_when(
+      str_detect(eventID, "_P") ~ "plankton",
+      str_detect(eventID, "_S") ~ "plate",
+      str_detect(eventID, "_W") ~ "water"
+    )
+  )
+
+dna24 <- read.table("data/COI_2024/DNA_extension_table.tsv", sep = "\t", header = TRUE, na.strings = "")
+```
+
+
+```{r echo=FALSE}
+getwd()
+
+occurrence18s24_1 <- read.table("data/18S_2024/Occurrence_table1.tsv", sep = "\t", header = TRUE, na.strings = "")
+occurrence18s24_2 <- read.table("data/18S_2024/Occurrence_table2.tsv", sep = "\t", header = TRUE, na.strings = "")
+
+occurrence18s24 <- bind_rows(occurrence18s24_1, occurrence18s24_2)
+
+occurrence18s24 <- occurrence18s24 %>%
+  mutate(
+    species = ifelse(taxonRank == "species", scientificName, NA),
+    eventDate = parse_date(str_match(eventID, "_([0-9]+)_")[,2], format = "%Y%m%d"),
+    aphiaID = str_extract(scientificNameID, "[0-9]+"),
+    eventType = case_when(
+      str_detect(eventID, "_P") ~ "plankton",
+      str_detect(eventID, "_S") ~ "plate",
+      str_detect(eventID, "_W") ~ "water"
+    )
+  )
+
+
+dna18s24 <- read.table("data/18S_2024/DNA_extension_table.tsv", sep = "\t", header = TRUE, na.strings = "")
+```
+
+
+## Sample overview 2023
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 samples <- occurrence %>%
@@ -162,7 +206,114 @@ samples %>%
   ))
 ```
 
-## Taxonomic composition
+## Sample overview 2024
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+samples24 <- occurrence24 %>%
+  filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
+  group_by(locationID, eventID, materialSampleID, eventType, decimalLongitude, decimalLatitude, eventDate) %>%
+  summarize(
+    asvs = n(), reads = sum(organismQuantity), species = length(unique(na.omit(species)))
+  ) %>%
+  ungroup() %>%
+  arrange(locationID, eventDate, eventType, materialSampleID) %>%
+  st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
+
+leaflet(samples24, width = "100%") %>% addTiles() %>% addMarkers(
+  clusterOptions = markerClusterOptions(maxClusterRadius = 10),
+  popup = ~eventID
+)
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=12}
+ggplot(samples24) +
+  geom_bar(aes(x = locationID, fill = eventType), width = 0.3) +
+  scale_fill_manual(values = c(plankton = "#8BBEB2", water = "#456092", plate = "#18314F")) +
+  ggtitle("Number of samples by location and sample type")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.width=11, fig.height=9}
+ggplot() +
+  geom_point(data = samples24, aes(reads, species, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = samples24, aes(reads, species, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 20000)) +
+  ggtitle("Reads and species by sample")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+species_def <- colDef(
+  minWidth = 200,
+  style = list("font-size" = "0.9em")
+)
+
+reads_def <- colDef(
+  style = list("font-size" = "0.9em")
+)
+
+text_def_narrow <- colDef(
+  maxWidth = 130,
+  style = list("font-size" = "0.9em")
+)
+
+text_def_verynarrow <- colDef(
+  maxWidth = 80,
+  style = list("font-size" = "0.9em")
+)
+
+text_def <- colDef(
+  style = list("font-size" = "0.9em")
+)
+
+bool_def <- colDef(
+  maxWidth = 60,
+  style = function(value) {
+    if (value) {
+      list(
+        color = "#18bc9c",
+        "font-size" = "0.9em"
+      )
+    } else {
+      list("font-size" = "0.9em")
+    }
+  }
+)
+
+abundance_def <- colDef(
+  maxWidth = 80,
+  header = function(value) {
+    units <- div("%")
+    div(title = value, value, units)
+  },
+  style = function(value) {
+    if (value > 0) {
+      list(
+        color = "#18bc9c",
+        "font-size" = "0.8em"
+      )
+    } else {
+      list("font-size" = "0.8em", "visibility" = "hidden")
+    }
+  }
+)
+
+samples24 %>%
+  st_drop_geometry() %>%
+  select(-locationID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "eventID" = text_def,
+    "materialSampleID" = text_def_narrow,
+    "eventType" = text_def_verynarrow,
+    "eventDate" = text_def_narrow,
+    "asvs" = text_def_verynarrow,
+    "reads" = text_def_verynarrow,
+    "species" = text_def_verynarrow
+  ))
+```
+
+
+
+## Taxonomic composition COI 2023
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
 stats_phylum <- occurrence %>%
@@ -191,7 +342,67 @@ ggplot(data = stats_phylum) +
   ggtitle("Number of species by location, sample type, and phylum")
 ```
 
-## Beta diversity
+## Taxonomic composition COI 2024
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
+stats_phylum <- occurrence24 %>%
+  filter(locationID != "Control" & !is.na(phylum)) %>%
+  group_by(phylum, locationID, eventType) %>%
+  summarize(reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
+  ungroup()
+
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = reads, fill = phylum), stat = "identity") +
+  scale_x_continuous(trans = "log10") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of reads by location, sample type, and phylum")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = species, fill = phylum), stat = "identity") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of species by location, sample type, and phylum")
+```
+
+
+## Taxonomic composition 18S 2024
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
+stats_phylum <- occurrence18s24 %>%
+  filter(locationID != "Control" & !is.na(phylum)) %>%
+  group_by(phylum, locationID, eventType) %>%
+  summarize(reads = sum(organismQuantity), species = length(unique(na.omit(species)))) %>%
+  ungroup()
+
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = reads, fill = phylum), stat = "identity") +
+  scale_x_continuous(trans = "log10") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of reads by location, sample type, and phylum")
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, fig.height=15, fig.width=12}
+ggplot(data = stats_phylum) +
+  geom_bar(aes(y = phylum, x = species, fill = phylum), stat = "identity") +
+  scale_fill_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_y_discrete(limits = rev) +
+  facet_grid(eventType~locationID) +
+  theme(legend.position = "none") +
+  ggtitle("Number of species by location, sample type, and phylum")
+```
+
+
+## Beta diversity COI 2023
 
 Multidimensional scaling using reads per phylum.
 
@@ -262,7 +473,165 @@ ggplot() +
   ggtitle("Nonmetric multidimensional scaling")
 ```
 
-## Full species list
+
+## Beta diversity COI 2024 
+
+Multidimensional scaling using reads per phylum.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
+stats_mds <- occurrence24 %>%
+  filter(!is.na(phylum) & !is.na(eventType)) %>%
+  group_by(materialSampleID, phylum) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = phylum, values_from = reads, values_fill = 0)
+
+materialSampleIDs <- stats_mds$materialSampleID
+stats_mds <- stats_mds %>%
+  select(-materialSampleID)
+rs <- rowSums(stats_mds)
+stats_mds <- stats_mds %>%
+  mutate_if(is.numeric, funs(. / rs))
+
+mds <- metaMDS(stats_mds)
+
+mds_sites <- as.data.frame(scores(mds)$sites) %>%
+  mutate(materialSampleID = materialSampleIDs) %>%
+  left_join(samples24, by = "materialSampleID")
+
+mds_species <- as.data.frame(scores(mds)$species) %>%
+  mutate(phylum = row.names(.))
+
+ggplot() +
+  geom_point(data = mds_sites, aes(NMDS1, NMDS2, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = mds_species, aes(NMDS1, NMDS2, label = phylum), color = "#a83257", size = 3) +
+  geom_text(data = mds_sites, aes(NMDS1, NMDS2, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 0.3)) +
+  ggtitle("Nonmetric multidimensional scaling")
+```
+
+Multidimensional scaling using species presence / absence.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
+stats_mds <- occurrence24 %>%
+  filter(!is.na(species) & !is.na(eventType)) %>%
+  group_by(materialSampleID, species) %>%
+  summarize(reads = as.numeric(sum(organismQuantity) > 0)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = species, values_from = reads, values_fill = 0)
+
+materialSampleIDs <- stats_mds$materialSampleID
+stats_mds <- stats_mds %>%
+  select(-materialSampleID)
+rs <- rowSums(stats_mds)
+stats_mds <- stats_mds %>%
+  mutate_if(is.numeric, funs(. / rs))
+
+mds <- metaMDS(stats_mds)
+
+mds_sites <- as.data.frame(scores(mds)$sites) %>%
+  mutate(materialSampleID = materialSampleIDs) %>%
+  left_join(samples24, by = "materialSampleID")
+
+mds_species <- as.data.frame(scores(mds)$species) %>%
+  mutate(species = row.names(.))
+
+ggplot() +
+  geom_point(data = mds_sites, aes(NMDS1, NMDS2, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = mds_sites, aes(NMDS1, NMDS2, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 0.3)) +
+  ggtitle("Nonmetric multidimensional scaling")
+```
+
+## Beta diversity 18S 2024 
+
+Multidimensional scaling using reads per phylum.
+
+```{R, echo=F}
+#Define samples (not the same as COI?)
+samples18s24 <- occurrence18s24 %>%
+  filter(!is.na(decimalLongitude) & !is.na(decimalLatitude)) %>%
+  group_by(locationID, eventID, materialSampleID, eventType, decimalLongitude, decimalLatitude, eventDate) %>%
+  summarize(
+    asvs = n(), reads = sum(organismQuantity), species = length(unique(na.omit(species)))
+  ) %>%
+  ungroup() %>%
+  arrange(locationID, eventDate, eventType, materialSampleID) %>%
+  st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
+```
+
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
+stats_mds <- occurrence18s24 %>%
+  filter(!is.na(phylum) & !is.na(eventType)) %>%
+  group_by(materialSampleID, phylum) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = phylum, values_from = reads, values_fill = 0)
+
+materialSampleIDs <- stats_mds$materialSampleID
+stats_mds <- stats_mds %>%
+  select(-materialSampleID)
+rs <- rowSums(stats_mds)
+stats_mds <- stats_mds %>%
+  mutate_if(is.numeric, funs(. / rs))
+
+mds <- metaMDS(stats_mds)
+
+mds_sites <- as.data.frame(scores(mds)$sites) %>%
+  mutate(materialSampleID = materialSampleIDs) %>%
+  left_join(samples18s24, by = "materialSampleID")
+
+mds_species <- as.data.frame(scores(mds)$species) %>%
+  mutate(phylum = row.names(.))
+
+ggplot() +
+  geom_point(data = mds_sites, aes(NMDS1, NMDS2, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = mds_species, aes(NMDS1, NMDS2, label = phylum), color = "#a83257", size = 3) +
+  geom_text(data = mds_sites, aes(NMDS1, NMDS2, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 0.3)) +
+  ggtitle("Nonmetric multidimensional scaling")
+```
+
+Multidimensional scaling using species presence / absence.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE, results='hide', fig.height=10, fig.width=12}
+stats_mds <- occurrence18s24 %>%
+  filter(!is.na(species) & !is.na(eventType)) %>%
+  group_by(materialSampleID, species) %>%
+  summarize(reads = as.numeric(sum(organismQuantity) > 0)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = species, values_from = reads, values_fill = 0)
+
+materialSampleIDs <- stats_mds$materialSampleID
+stats_mds <- stats_mds %>%
+  select(-materialSampleID)
+rs <- rowSums(stats_mds)
+stats_mds <- stats_mds %>%
+  mutate_if(is.numeric, funs(. / rs))
+
+mds <- metaMDS(stats_mds)
+
+mds_sites <- as.data.frame(scores(mds)$sites) %>%
+  mutate(materialSampleID = materialSampleIDs) %>%
+  left_join(samples18s24, by = "materialSampleID")
+
+mds_species <- as.data.frame(scores(mds)$species) %>%
+  mutate(species = row.names(.))
+
+ggplot() +
+  geom_point(data = mds_sites, aes(NMDS1, NMDS2, color = eventType, shape = locationID), size = 3) +
+  geom_text(data = mds_sites, aes(NMDS1, NMDS2, label = eventID), size = 2, hjust = -0.1) +
+  scale_color_viridis(discrete = TRUE, option = "magma", begin = 0.2, end = 0.8) +
+  scale_x_continuous(expand = c(0, 0.3)) +
+  ggtitle("Nonmetric multidimensional scaling")
+```
+
+
+## Full species list COI 2023
 
 ```{r warning=FALSE, message=FALSE, echo=FALSE}
 abundances <- occurrence %>%
@@ -302,7 +671,88 @@ species %>%
   ))
 ```
 
-## Introduced species
+## Full species list COI 2024 
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+abundances <- occurrence24 %>%
+  filter(!is.na(eventType)) %>%
+  group_by(aphiaID, species, eventType) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  group_by(eventType) %>%
+  mutate(total_reads = sum(reads)) %>%
+  ungroup() %>%
+  mutate(abundance = reads / total_reads * 100) %>%
+  spread(eventType, abundance) %>%
+  group_by(aphiaID) %>%
+  summarize(water = round(sum(na.omit(water)), 3), plankton = round(sum(na.omit(plankton)), 3), plate = round(sum(na.omit(plate)), 3))
+
+species24 <- occurrence24 %>%
+  filter(!is.na(species) & !is.na(eventType)) %>%
+  group_by(phylum, class, species, aphiaID) %>%
+  summarize(
+    reads = sum(organismQuantity)
+    # water = "water" %in% eventType,
+    # plate = "plate" %in% eventType,
+    # plankton = "plankton" %in% eventType
+  ) %>%
+  arrange(desc(reads)) %>%
+  left_join(abundances, by = "aphiaID")
+
+species24 %>%
+  select(-aphiaID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
+  ))
+```
+
+## Full species list 18S 2024 
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+abundances <- occurrence18s24 %>%
+  filter(!is.na(eventType)) %>%
+  group_by(aphiaID, species, eventType) %>%
+  summarize(reads = sum(organismQuantity)) %>%
+  group_by(eventType) %>%
+  mutate(total_reads = sum(reads)) %>%
+  ungroup() %>%
+  mutate(abundance = reads / total_reads * 100) %>%
+  spread(eventType, abundance) %>%
+  group_by(aphiaID) %>%
+  summarize(water = round(sum(na.omit(water)), 3), plankton = round(sum(na.omit(plankton)), 3), plate = round(sum(na.omit(plate)), 3))
+
+species18s24 <- occurrence18s24 %>%
+  filter(!is.na(species) & !is.na(eventType)) %>%
+  group_by(phylum, class, species, aphiaID) %>%
+  summarize(
+    reads = sum(organismQuantity)
+    # water = "water" %in% eventType,
+    # plate = "plate" %in% eventType,
+    # plankton = "plankton" %in% eventType
+  ) %>%
+  arrange(desc(reads)) %>%
+  left_join(abundances, by = "aphiaID")
+
+species18s24 %>%
+  select(-aphiaID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
+  ))
+```
+
+
+## Introduced species COI 2023
 
 This is the subset of species which are listed in the World Register of Introduced Marine Species (WRiMS). These are not necessarily introduced in Fiji.
 
@@ -310,6 +760,52 @@ This is the subset of species which are listed in the World Register of Introduc
 wrims <- caspr::wrims_checklist()
 
 introduced <- species %>%
+  filter(aphiaID %in% wrims$taxonID)
+
+introduced %>%
+  select(-aphiaID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
+  ))
+```
+
+## Introduced species COI 2024 
+
+This is the subset of species which are listed in the World Register of Introduced Marine Species (WRiMS). These are not necessarily introduced in Fiji.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+wrims <- caspr::wrims_checklist()
+
+introduced <- species24 %>%
+  filter(aphiaID %in% wrims$taxonID)
+
+introduced %>%
+  select(-aphiaID) %>%
+  reactable(pagination = TRUE, wrap = FALSE, highlight = TRUE, outlined = TRUE, striped = TRUE, defaultPageSize = 20, filterable = TRUE, columns = list(
+    "phylum" = text_def_narrow,
+    "class" = text_def_narrow,
+    "species" = species_def,
+    "reads" = reads_def,
+    "plate" = abundance_def,
+    "water" = abundance_def,
+    "plankton" = abundance_def
+  ))
+```
+
+## Introduced species 18S 2024 
+
+This is the subset of species which are listed in the World Register of Introduced Marine Species (WRiMS). These are not necessarily introduced in Fiji.
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+wrims <- caspr::wrims_checklist()
+
+introduced <- species18s24 %>%
   filter(aphiaID %in% wrims$taxonID)
 
 introduced %>%
