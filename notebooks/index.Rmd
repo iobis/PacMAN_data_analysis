@@ -79,11 +79,11 @@ dna24 <- read.table("data/COI_2024/DNA_extension_table.tsv", sep = "\t", header 
 ```{r echo=FALSE}
 getwd()
 
-occurrence18s24_2<- read.table("data/18S_2024/Occurrence_table1.tsv", sep = "\t", header = TRUE, na.strings = "")
+occurrence18s24_1 <- read.table("data/18S_2024/Occurrence_table1.tsv", sep = "\t", header = TRUE, na.strings = "")
 occurrence18s24_2 <- read.table("data/18S_2024/Occurrence_table2.tsv", sep = "\t", header = FALSE, na.strings = "")
 colnames(occurrence18s24_2) <- colnames(occurrence18s24_1)
 
-occurrence18s24 <- bind_rows(occurrence18s24_1, occurrence18s24_2,)
+occurrence18s24 <- bind_rows(occurrence18s24_1, occurrence18s24_2)
 
 occurrence18s24 <- occurrence18s24 %>%
   mutate(
@@ -821,3 +821,4 @@ introduced %>%
     "plankton" = abundance_def
   ))
 ```
+
